@@ -631,7 +631,7 @@
       </div>
       <div class="output-nav-right">
         <button class="btn btn-icon" onclick="copyScript()">📋 Copy Script</button>
-        <button class="btn btn-ghost" onclick="goToDashboard()">Generate Another</button>
+        <button class="btn btn-ghost" onclick="goToDashboard()">Create Your Video</button>
       </div>
     </div>
 
@@ -741,7 +741,13 @@
     function goToDashboard() {
       document.getElementById('idea-input').value = '';
       document.getElementById('char-hint').textContent = '0 / 1000';
-      showPage('page-dashboard');
+      document.getElementById('generate-btn').disabled = false;
+      document.getElementById('generate-btn').innerHTML = '⚡ Generate My Script';
+      document.getElementById('loading-overlay').classList.remove('show');
+      const ideaCard = document.querySelector('.idea-card');
+      ideaCard.style.opacity = '';
+      ideaCard.style.pointerEvents = '';
+      showDashboard();
     }
 
     /* ─────────── ONBOARDING ─────────── */
