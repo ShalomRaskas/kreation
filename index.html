@@ -688,8 +688,7 @@
   <!-- Toast notification -->
   <div class="toast" id="toast"></div>
 
-  <!-- DEBUG PANEL (temporary) -->
-  <div id="debug-panel" style="display:none; position:fixed; bottom:0; left:0; right:0; max-height:40vh; overflow-y:auto; background:#0d0d0d; border-top:2px solid #6C5CE7; padding:1rem; font-family:monospace; font-size:0.78rem; color:#00ff88; z-index:99999; white-space:pre-wrap; word-break:break-all;"></div>
+
 
   <!-- ═══════════════════════ SCRIPT ═══════════════════════ -->
   <script>
@@ -709,7 +708,7 @@
       if (saved) {
         try {
           const profile = JSON.parse(saved);
-          if (profile && profile.length === QUESTIONS && profile.every(Boolean)) {
+          if (profile && profile.length === QUESTIONS && profile.every(a => a && a.trim().length > 1)) {
             answers = profile;
             showDashboard();
             return;
@@ -956,14 +955,7 @@ CRITICAL FORMAT RULES:
       }
 
       const data = await response.json();
-      const rawText = data.content?.[0]?.text || '';
-
-      // DEBUG: show raw response on screen
-      const dbg = document.getElementById('debug-panel');
-      dbg.style.display = 'block';
-      dbg.textContent = '=== RAW API RESPONSE ===\n\n' + rawText;
-
-      return rawText;
+      return data.content?.[0]?.text || '';
     }
 
     function setGeneratingState(loading) {
