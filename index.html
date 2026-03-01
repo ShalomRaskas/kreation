@@ -903,23 +903,25 @@ CREATOR PROFILE:
 YOUR TASK:
 Write a complete YouTube video script for the content idea the creator provides. The script must sound EXACTLY like ${name} — their personality, their words, their energy. Do NOT sound generic.
 
-STRUCTURE — you must output the script in exactly this format, with these exact section markers:
+STRUCTURE — output the script using EXACTLY these three markers on their own lines, nothing else before or between them:
 
 [HOOK]
-(Write the hook here — first 30-60 seconds. Open with a bold statement, question, or scene that grabs attention instantly. Make it feel personal and true to ${name}'s voice.)
+Write the hook content here. First 30-60 seconds. Open with a bold statement, question, or scene that instantly grabs attention. Personal and true to ${name}'s voice.
 
 [MAIN CONTENT]
-(Write the main body here — the full substance of the video. Use natural transitions. Include examples, stories, or breakdowns that fit ${name}'s style. Write it conversationally as if they're speaking directly to ${audience}.)
+Write the full main body here. Use natural transitions. Include examples, stories, or breakdowns that fit ${name}'s style. Write conversationally as if speaking directly to ${audience}.
 
 [CALL TO ACTION]
-(Write the closing CTA here — encourage viewers to subscribe, comment, share, or take action. Keep it natural, not pushy. Should sound like how ${name} actually talks.)
+Write the closing CTA here. Encourage viewers to subscribe, comment, share, or take action. Natural, not pushy. Sound like how ${name} actually talks.
 
-RULES:
+CRITICAL FORMAT RULES:
+- The only section markers allowed are exactly: [HOOK], [MAIN CONTENT], [CALL TO ACTION]
+- Do NOT use markdown headers (##), bold (**), or any other formatting for section titles
+- Do NOT add any text before [HOOK] or after the [CALL TO ACTION] content
+- Do NOT wrap section names in anything other than square brackets
 - Write in first person as ${name}
 - Match the ${style} communication style throughout
-- Keep transitions natural — this should feel like a real video, not an essay
-- Aim for a 5-8 minute video (roughly 800-1200 words of spoken content)
-- Do NOT add any preamble, notes, or commentary outside the three sections`;
+- Aim for a 5-8 minute video (roughly 800-1200 words of spoken content)`;
 
       if (refineFeedback) {
         prompt += `\n\nADDITIONAL REFINEMENT INSTRUCTIONS:\nThe creator has provided the following feedback on the previous version. Apply it carefully:\n"${refineFeedback}"`;
@@ -990,9 +992,24 @@ RULES:
     }
 
     function extractSection(text, label) {
-      const pattern = new RegExp(`\\[${label}\\]([\\s\\S]*?)(?=\\[|$)`, 'i');
-      const match = text.match(pattern);
-      return match ? match[1].trim() : '';
+      // Strategy 1: [LABEL] ... next [SECTION] or end
+      const p1 = new RegExp(`\\[${label}\\][\\s\\S]*?\\n([\\s\\S]*?)(?=\\n\\s*\\[(?:HOOK|MAIN CONTENT|CALL TO ACTION)\\]|$)`, 'i');
+      const m1 = text.match(p1);
+      if (m1 && m1[1].trim()) return m1[1].trim();
+
+      // Strategy 2: **LABEL** or ## LABEL or LABEL: patterns
+      const safeLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const p2 = new RegExp(`(?:\\*{1,2}|#{1,3}\\s?)${safeLabel}(?:\\*{1,2})?[:\\s]*\\n([\\s\\S]*?)(?=\\n\\s*(?:\\*{1,2}|#{1,3}\\s?)(?:HOOK|MAIN CONTENT|CALL TO ACTION)|$)`, 'i');
+      const m2 = text.match(p2);
+      if (m2 && m2[1].trim()) return m2[1].trim();
+
+      // Strategy 3: split on all known section headers and pick the right chunk
+      const parts = text.split(/\n?\s*(?:\[|\*{1,2}|#{1,3}\s?)(?:HOOK|MAIN CONTENT|CALL TO ACTION)(?:\]|\*{1,2})?[:\s]*/i);
+      const headers = [...text.matchAll(/(?:\[|\*{1,2}|#{1,3}\s?)(HOOK|MAIN CONTENT|CALL TO ACTION)(?:\]|\*{1,2})?/gi)];
+      const idx = headers.findIndex(h => h[1].toUpperCase() === label.toUpperCase());
+      if (idx !== -1 && parts[idx + 1]) return parts[idx + 1].trim();
+
+      return '';
     }
 
     /* ─────────── COPY SCRIPT ─────────── */
