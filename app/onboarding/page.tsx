@@ -58,32 +58,52 @@ export default function OnboardingPage() {
     }
   }
 
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const saveProfile = async () => {
     setSaving(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth')
-      return
-    }
+    setSaveError(null)
 
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      intro: values.intro,
-      writing_samples: values.writing_samples,
-      content_topic: values.content_topic,
-      platform: platform.trim(),
-      updated_at: new Date().toISOString(),
-    })
+    try {
+      const supabase = createClient()
 
-    if (error) {
-      console.error('Error saving profile:', error)
+      const { data: sessionData } = await supabase.auth.getUser()
+      const user = sessionData?.user
+      console.log('[onboarding] user session:', user)
+
+      if (!user) {
+        console.warn('[onboarding] No user session found — redirecting to /auth')
+        router.push('/auth')
+        return
+      }
+
+      const payload = {
+        id: user.id,
+        intro: values.intro,
+        writing_samples: values.writing_samples,
+        content_topic: values.content_topic,
+        platform: platform.trim(),
+        updated_at: new Date().toISOString(),
+      }
+      console.log('[onboarding] upserting profile payload:', payload)
+
+      const { error } = await supabase.from('profiles').upsert(payload)
+
+      if (error) {
+        console.error('[onboarding] Supabase upsert error:', error)
+        setSaveError(`Failed to save profile: ${error.message} (code: ${error.code})`)
+        setSaving(false)
+        return
+      }
+
+      console.log('[onboarding] upsert successful — redirecting to /dashboard')
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err) {
+      console.error('[onboarding] Unexpected error:', err)
+      setSaveError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setSaving(false)
-      return
     }
-
-    router.push('/dashboard')
-    router.refresh()
   }
 
   if (saving) {
@@ -177,6 +197,21 @@ export default function OnboardingPage() {
                   fontFamily: 'inherit',
                 }}
               />
+            </div>
+          )}
+
+          {saveError && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(239,68,68,0.15)',
+              border: '1px solid rgba(239,68,68,0.4)',
+              color: '#fca5a5',
+              fontSize: '0.875rem',
+              lineHeight: 1.5,
+            }}>
+              ⚠️ {saveError}
             </div>
           )}
 
