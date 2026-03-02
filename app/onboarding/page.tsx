@@ -12,16 +12,16 @@ const STEPS = [
       "Tell me who you are, what you do, and what you care about. Don't try to sound professional.",
     field: 'intro' as const,
     minChars: 50,
-    placeholder: 'Hey, I'm...',
+    placeholder: "Hey, I'm...",
   },
   {
     step: 2,
     heading: 'Show me how you actually write',
     subtext:
-      'Paste 3–5 tweets, captions, or anything you've written that felt like you. No examples yet? Just write a few sentences about something you're passionate about.',
+      "Paste 3–5 tweets, captions, or anything you've written that felt like you. No examples yet? Just write a few sentences about something you're passionate about.",
     field: 'writing_samples' as const,
     minChars: 100,
-    placeholder: 'Here are some things I've written...',
+    placeholder: "Here are some things I've written...",
   },
   {
     step: 3,
