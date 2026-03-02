@@ -1,123 +1,66 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-const QUESTIONS = [
+const STEPS = [
   {
-    label: 'Question 1 of 5',
-    text: 'What do you want to create content about?',
-    choices: [
-      { emoji: '💼', label: 'Business & Entrepreneurship', value: 'Business and Entrepreneurship' },
-      { emoji: '💪', label: 'Fitness & Health', value: 'Fitness and Health' },
-      { emoji: '💰', label: 'Finance & Money', value: 'Finance and Money' },
-      { emoji: '🌱', label: 'Lifestyle & Personal Growth', value: 'Lifestyle and Personal Growth' },
-      { emoji: '🤖', label: 'Tech & AI', value: 'Tech and AI' },
-      { emoji: '🏆', label: 'Sports', value: 'Sports' },
-      { emoji: '🍳', label: 'Food & Cooking', value: 'Food and Cooking' },
-    ],
-    placeholder: 'Describe your niche…',
+    step: 1,
+    heading: "Talk to me like you're texting a friend",
+    subtext:
+      "Tell me who you are, what you do, and what you care about. Don't try to sound professional.",
+    field: 'intro' as const,
+    minChars: 50,
+    placeholder: 'Hey, I'm...',
   },
   {
-    label: 'Question 2 of 5',
-    text: 'How would you describe your personality?',
-    choices: [
-      { emoji: '⚡', label: 'Energetic & Hype', value: 'Energetic and Hype' },
-      { emoji: '🧘', label: 'Calm & Thoughtful', value: 'Calm and Thoughtful' },
-      { emoji: '😂', label: 'Funny & Sarcastic', value: 'Funny and Sarcastic' },
-      { emoji: '🎯', label: 'Straight to the Point', value: 'Straight to the Point' },
-      { emoji: '🔥', label: 'Inspirational & Motivating', value: 'Inspirational and Motivating' },
-    ],
-    placeholder: 'Describe your personality…',
+    step: 2,
+    heading: 'Show me how you actually write',
+    subtext:
+      'Paste 3–5 tweets, captions, or anything you've written that felt like you. No examples yet? Just write a few sentences about something you're passionate about.',
+    field: 'writing_samples' as const,
+    minChars: 100,
+    placeholder: 'Here are some things I've written...',
   },
   {
-    label: 'Question 3 of 5',
-    text: 'Who is your target audience?',
-    choices: [
-      { emoji: '🎓', label: 'Young Adults 18–25', value: 'Young Adults 18-25' },
-      { emoji: '💼', label: 'Professionals 25–40', value: 'Professionals 25-40' },
-      { emoji: '🌍', label: 'General Audience', value: 'General Audience' },
-      { emoji: '🌱', label: 'Beginners in my niche', value: 'Beginners in my niche' },
-      { emoji: '🏅', label: 'Experts in my niche', value: 'Experts in my niche' },
-    ],
-    placeholder: 'Describe your audience…',
-  },
-  {
-    label: 'Question 4 of 5',
-    text: 'What is your content style?',
-    choices: [
-      { emoji: '💬', label: 'Casual & Conversational', value: 'Casual and Conversational' },
-      { emoji: '📚', label: 'Educational & Informative', value: 'Educational and Informative' },
-      { emoji: '📖', label: 'Storytelling', value: 'Storytelling' },
-      { emoji: '🚀', label: 'Motivational', value: 'Motivational' },
-      { emoji: '🎭', label: 'Entertaining', value: 'Entertaining' },
-    ],
-    placeholder: 'Describe your style…',
-  },
-  {
-    label: 'Question 5 of 5',
-    text: 'What platform are you creating for?',
-    choices: [
-      { emoji: '▶️', label: 'YouTube', value: 'YouTube' },
-      { emoji: '🎵', label: 'TikTok', value: 'TikTok' },
-      { emoji: '📸', label: 'Instagram', value: 'Instagram' },
-      { emoji: '🎙️', label: 'Podcast', value: 'Podcast' },
-      { emoji: '💼', label: 'LinkedIn', value: 'LinkedIn' },
-    ],
-    placeholder: 'Your platform…',
+    step: 3,
+    heading: 'What do you want to create content about?',
+    subtext: 'Just say it naturally. One sentence is fine.',
+    field: 'content_topic' as const,
+    minChars: 20,
+    placeholder: 'I want to talk about...',
   },
 ]
 
 export default function OnboardingPage() {
-  const [currentQ, setCurrentQ] = useState(0)
-  const [slideKey, setSlideKey] = useState(0) // changing this remounts slide → triggers slideIn
-  const [answers, setAnswers] = useState<string[]>(Array(5).fill(''))
-  const [selected, setSelected] = useState<string>('')
-  const [showOther, setShowOther] = useState(false)
-  const [otherValue, setOtherValue] = useState('')
+  const [currentStep, setCurrentStep] = useState(0)
+  const [values, setValues] = useState({ intro: '', writing_samples: '', content_topic: '' })
+  const [platform, setPlatform] = useState('')
   const [saving, setSaving] = useState(false)
-  const otherInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Reset per-slide state whenever the question changes
-  useEffect(() => {
-    setSelected('')
-    setShowOther(false)
-    setOtherValue('')
-  }, [currentQ])
+  const step = STEPS[currentStep]
+  const currentValue = values[step.field]
+  const meetsMin = currentValue.length >= step.minChars
+  const isLast = currentStep === STEPS.length - 1
 
-  const advance = (value: string) => {
-    const newAnswers = [...answers]
-    newAnswers[currentQ] = value
-    setAnswers(newAnswers)
+  const handleChange = (val: string) => {
+    setValues(prev => ({ ...prev, [step.field]: val }))
+  }
 
-    if (currentQ < 4) {
-      setSlideKey(k => k + 1)
-      setCurrentQ(q => q + 1)
+  const handleContinue = async () => {
+    if (!meetsMin) return
+    if (!isLast) {
+      setCurrentStep(s => s + 1)
     } else {
-      saveProfile(newAnswers)
+      await saveProfile()
     }
   }
 
-  const selectChoice = (value: string) => {
-    setSelected(value)
-    setTimeout(() => advance(value), 380)
-  }
-
-  const confirmOther = () => {
-    const val = otherValue.trim()
-    if (!val) {
-      otherInputRef.current?.focus()
-      return
-    }
-    advance(val)
-  }
-
-  const saveProfile = async (finalAnswers: string[]) => {
+  const saveProfile = async () => {
     setSaving(true)
     const supabase = createClient()
-
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/auth')
@@ -126,11 +69,10 @@ export default function OnboardingPage() {
 
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
-      niche: finalAnswers[0],
-      personality: finalAnswers[1],
-      audience: finalAnswers[2],
-      style: finalAnswers[3],
-      platform: finalAnswers[4],
+      intro: values.intro,
+      writing_samples: values.writing_samples,
+      content_topic: values.content_topic,
+      platform: platform.trim(),
       updated_at: new Date().toISOString(),
     })
 
@@ -144,19 +86,16 @@ export default function OnboardingPage() {
     router.refresh()
   }
 
-  const q = QUESTIONS[currentQ]
-  const progress = (currentQ / 5) * 100
-
   if (saving) {
     return (
       <div className="page active" style={{ background: 'var(--bg)' }}>
         <div className="spinner" style={{ width: 48, height: 48 }} />
-        <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>
-          Setting up your profile…
-        </p>
+        <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Setting up your profile…</p>
       </div>
     )
   }
+
+  const progressPct = ((currentStep + 1) / STEPS.length) * 100
 
   return (
     <section className="page active" id="page-onboarding">
@@ -165,56 +104,103 @@ export default function OnboardingPage() {
           Kre<span>ation</span>
         </span>
         <h1>Let&apos;s get to know you</h1>
-        <p>Five quick taps to build your creative voice profile.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          Step {currentStep + 1} of {STEPS.length}
+        </p>
       </div>
 
+      {/* Progress bar */}
       <div className="ob-progress-bar">
-        <div className="ob-progress-fill" style={{ width: `${progress}%` }} />
+        <div className="ob-progress-fill" style={{ width: `${progressPct}%`, transition: 'width 0.4s ease' }} />
       </div>
 
       <div className="ob-wrap">
-        {/* key={slideKey} causes remount → CSS slideIn animation fires on each question */}
-        <div key={slideKey} className="ob-slide active">
-          <div className="ob-q-label">{q.label}</div>
-          <div className="ob-q-text">{q.text}</div>
-
-          <div className="ob-choices">
-            {q.choices.map(choice => (
-              <button
-                key={choice.value}
-                className={`ob-choice ${selected === choice.value ? 'selected' : ''}`}
-                onClick={() => selectChoice(choice.value)}
-              >
-                {choice.emoji} {choice.label}
-              </button>
-            ))}
-            <button
-              className={`ob-choice other-btn ${showOther ? 'selected' : ''}`}
-              onClick={() => {
-                setShowOther(true)
-                setTimeout(() => otherInputRef.current?.focus(), 50)
-              }}
-            >
-              ✏️ Other — type your own
-            </button>
+        <div className="ob-slide active">
+          <div className="ob-q-text" style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>
+            {step.heading}
           </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+            {step.subtext}
+          </p>
 
-          {showOther && (
-            <div className="ob-other-input-wrap show">
+          <textarea
+            value={currentValue}
+            onChange={e => handleChange(e.target.value)}
+            placeholder={step.placeholder}
+            rows={7}
+            style={{
+              width: '100%',
+              background: 'var(--card-bg, rgba(255,255,255,0.05))',
+              border: '1px solid var(--border, rgba(255,255,255,0.12))',
+              borderRadius: '12px',
+              color: 'var(--text, #fff)',
+              padding: '1rem',
+              fontSize: '1rem',
+              resize: 'vertical',
+              lineHeight: 1.6,
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+
+          {/* Live character counter */}
+          <p style={{
+            textAlign: 'right',
+            fontSize: '0.8rem',
+            marginTop: '0.4rem',
+            color: meetsMin ? 'var(--accent, #a78bfa)' : 'var(--text-muted)',
+          }}>
+            {currentValue.length} / {step.minChars} characters
+            {meetsMin && ' ✓'}
+          </p>
+
+          {/* Platform input — only on last step */}
+          {isLast && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                What platform are you mainly posting on? (e.g. YouTube, TikTok, Instagram)
+              </label>
               <input
-                ref={otherInputRef}
                 type="text"
-                placeholder={q.placeholder}
-                maxLength={200}
-                value={otherValue}
-                onChange={e => setOtherValue(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && confirmOther()}
+                value={platform}
+                onChange={e => setPlatform(e.target.value)}
+                placeholder="YouTube"
+                style={{
+                  width: '100%',
+                  background: 'var(--card-bg, rgba(255,255,255,0.05))',
+                  border: '1px solid var(--border, rgba(255,255,255,0.12))',
+                  borderRadius: '8px',
+                  color: 'var(--text, #fff)',
+                  padding: '0.6rem 1rem',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                }}
               />
-              <button className="ob-other-confirm" onClick={confirmOther}>
-                →
-              </button>
             </div>
           )}
+
+          <button
+            onClick={handleContinue}
+            disabled={!meetsMin}
+            style={{
+              marginTop: '1.5rem',
+              width: '100%',
+              padding: '0.85rem',
+              borderRadius: '10px',
+              fontSize: '1rem',
+              fontWeight: 600,
+              cursor: meetsMin ? 'pointer' : 'not-allowed',
+              background: meetsMin
+                ? 'linear-gradient(135deg, #7c3aed, #a78bfa)'
+                : 'rgba(255,255,255,0.08)',
+              color: meetsMin ? '#fff' : 'var(--text-muted)',
+              border: 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {isLast ? 'Finish →' : 'Continue →'}
+          </button>
         </div>
       </div>
     </section>

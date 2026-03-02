@@ -2,50 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 interface Profile {
-  niche: string
-  personality: string
-  audience: string
-  style: string
+  intro: string
+  writing_samples: string
+  content_topic: string
   platform: string
 }
 
-function buildPrompt(profile: Profile, refineFeedback: string): string {
-  const { niche, personality, audience, style, platform } = profile
+function buildPrompt(profile: Profile, idea: string, refineFeedback: string): string {
+  const { intro, writing_samples, content_topic, platform } = profile
 
-  let prompt = `You are an expert ${platform} scriptwriter who writes in the creator's exact voice.
+  let system = `You are a content script writer. Your entire job is to make this script sound like it was written by the actual person, not by AI.
 
-CREATOR PROFILE:
-- Content niche: ${niche}
-- Personality: ${personality}
-- Target audience: ${audience}
-- Content style: ${style}
-- Platform: ${platform}
+Here is everything you know about them:
 
-YOUR TASK:
-Write a complete ${platform} script for the idea the creator provides. Match their personality and style exactly. Sound like a real person, not a generic AI script.
+This is how they describe themselves in their own words: ${intro}
 
-OUTPUT FORMAT — use EXACTLY these three markers, each on its own line:
+These are real examples of how they write: ${writing_samples}
 
-[HOOK]
-(Opening — first 15-30 seconds. Grab attention immediately. Match the ${personality} personality.)
+They create content about: ${content_topic}
 
-[MAIN CONTENT]
-(Full body of the content. Natural transitions. Speaks directly to ${audience}. Written in ${style} style.)
+They post on: ${platform}
 
-[CALL TO ACTION]
-(Closing — natural, not pushy. Fits the ${personality} personality.)
+Study their word choice, sentence length, energy level, punctuation style, and personality from those writing samples. Then write a script about ${idea} that could be mistaken for something they actually wrote.
 
-STRICT RULES:
-- Only use [HOOK], [MAIN CONTENT], [CALL TO ACTION] as section markers — no markdown, no bold, no ##
-- No text before [HOOK] and no text after the CTA content
-- First person voice throughout
-- Optimised for ${platform}`
+Use their vocabulary. Match their energy. If they write short punchy sentences, write short punchy sentences. If they use humor, use humor. If they are formal, be formal.
+
+The script must have three sections labeled HOOK, MAIN CONTENT, and CALL TO ACTION.
+
+Return as JSON with keys hook, main_content, call_to_action. Return only valid JSON — no markdown, no code fences, no extra text.`
 
   if (refineFeedback) {
-    prompt += `\n\nREFINEMENT FEEDBACK TO APPLY:\n"${refineFeedback}"`
+    system += `\n\nREFINEMENT FEEDBACK TO APPLY:\n"${refineFeedback}"`
   }
 
-  return prompt
+  return system
 }
 
 export async function POST(request: NextRequest) {
@@ -69,11 +59,11 @@ export async function POST(request: NextRequest) {
   // Load the user's profile to build the prompt server-side
   const { data: profile } = await supabase
     .from('profiles')
-    .select('niche, personality, audience, style, platform')
+    .select('intro, writing_samples, content_topic, platform')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.niche) {
+  if (!profile?.intro) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
 
@@ -84,7 +74,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'idea is required' }, { status: 400 })
   }
 
-  const system = buildPrompt(profile as Profile, refineFeedback)
+  const system = buildPrompt(profile as Profile, idea.trim(), refineFeedback)
 
   // Call Anthropic — API key stays on the server, never sent to the browser
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -113,5 +103,12 @@ export async function POST(request: NextRequest) {
   const data = await res.json()
   const text = (data.content?.[0]?.text as string) || ''
 
-  return NextResponse.json({ text })
+  // Attempt to parse JSON response
+  try {
+    const parsed = JSON.parse(text)
+    return NextResponse.json(parsed)
+  } catch {
+    // Fallback: return raw text for backward compatibility
+    return NextResponse.json({ text })
+  }
 }
