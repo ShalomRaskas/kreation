@@ -69,7 +69,7 @@ export default function Home() {
 
           {status === 'success' ? (
             <div className="text-2xl font-semibold tracking-tight">
-              You're on the list. ✅
+              You&apos;re on the list. ✅
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col items-center gap-3">
@@ -95,7 +95,7 @@ export default function Home() {
                 <p className="text-red-400 text-xs">{errorMsg}</p>
               )}
               <p className="text-xs text-white/30">
-                No spam. Just early access when we're ready.
+                No spam. Just early access when we&apos;re ready.
               </p>
             </form>
           )}

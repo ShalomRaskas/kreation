@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
+const supabase = createClient()
+
 const PLATFORMS = ['X', 'LinkedIn', 'Instagram', 'TikTok', 'YouTube'] as const
 type Platform = (typeof PLATFORMS)[number]
 
@@ -61,7 +63,6 @@ function formatTime(ts: number) {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [topic, setTopic] = useState('')
   const [loading, setLoading] = useState(false)
@@ -99,8 +100,11 @@ export default function DashboardPage() {
     if (data?.voice_samples) {
       setVoiceSamples(data.voice_samples)
       setHasVoice(true)
+    } else {
+      // No voice samples yet — send new users through onboarding
+      router.push('/onboarding')
     }
-  }, [supabase, router])
+  }, [router])
 
   useEffect(() => {
     loadProfile()
@@ -252,29 +256,6 @@ export default function DashboardPage() {
                 ? 'Your voice is loaded. Pick platforms and generate.'
                 : 'No voice samples found.'}
             </p>
-          </div>
-
-          {/* Connected platforms */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-white/30 uppercase tracking-widest">Connected platforms</p>
-            <div className="flex flex-wrap gap-2">
-              {PLATFORMS.map((platform) => {
-                const active = selectedPlatforms.includes(platform)
-                return (
-                  <div
-                    key={platform}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                      active
-                        ? 'border-green-500/30 bg-green-500/10 text-green-300'
-                        : 'border-white/10 bg-white/5 text-white/25'
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-green-400' : 'bg-white/15'}`} />
-                    {platform}
-                  </div>
-                )
-              })}
-            </div>
           </div>
 
           {/* No voice warning */}

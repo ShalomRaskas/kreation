@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+
+const supabase = createClient()
 
 export default function AuthPage() {
   const router = useRouter()
@@ -14,7 +16,13 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  const supabase = createClient()
+  // Show error if redirected back from a failed email confirmation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'confirmation_failed') {
+      setError('Email confirmation failed. Please try signing up again.')
+    }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -24,9 +32,15 @@ export default function AuthPage() {
 
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        setMessage('Check your email to confirm your account, then log in.')
+        // Auto-confirm enabled — session returned immediately
+        if (data.session) {
+          router.push('/onboarding')
+          router.refresh()
+        } else {
+          setMessage('Check your email to confirm your account, then log in.')
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error

@@ -35,6 +35,8 @@ const Q_LABELS = [
   'Something you\'ve been thinking about but haven\'t posted yet',
 ]
 
+const supabase = createClient()
+
 type Tab = 'qa' | 'past'
 
 export default function OnboardingPage() {
@@ -44,8 +46,6 @@ export default function OnboardingPage() {
   const [pastWriting, setPastWriting] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const supabase = createClient()
 
   const answeredCount = answers.filter(a => a.trim().length > 0).length
   const hasPastWriting = pastWriting.trim().length > 0
