@@ -120,11 +120,17 @@ export default function DashboardPage() {
     router.push('/')
   }
 
+  const NAV_ITEMS = [
+    { id: 'generate' as NavView, label: 'Generate', icon: '✦' },
+    { id: 'history' as NavView, label: 'History', icon: '◷' },
+    { id: 'settings' as NavView, label: 'Settings', icon: '⚙' },
+  ]
+
   return (
     <div className="flex h-screen bg-[#0f0f0f] text-white overflow-hidden">
 
-      {/* ── Sidebar ── */}
-      <aside className="w-[240px] flex-shrink-0 bg-[#1a1a1a] flex flex-col border-r border-white/[0.06]">
+      {/* ── Sidebar (desktop only) ── */}
+      <aside className="hidden md:flex w-[240px] flex-shrink-0 bg-[#1a1a1a] flex-col border-r border-white/[0.06]">
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/[0.06]">
           <span className="text-lg font-bold tracking-tight">Kreation •))</span>
@@ -132,11 +138,7 @@ export default function DashboardPage() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {([
-            { id: 'generate', label: 'Generate', icon: '✦' },
-            { id: 'history', label: 'History', icon: '◷' },
-            { id: 'settings', label: 'Settings', icon: '⚙' },
-          ] as { id: NavView; label: string; icon: string }[]).map((item) => (
+          {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
@@ -172,8 +174,16 @@ export default function DashboardPage() {
         </div>
       </aside>
 
+      {/* ── Mobile top bar ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0f0f0f] border-b border-white/[0.06] flex items-center justify-between px-5 py-4">
+        <span className="text-base font-bold tracking-tight">Kreation •))</span>
+        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold">
+          {userName.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
       {/* ── Main ── */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden md:pt-0 pt-[57px] pb-[64px] md:pb-0">
 
         {/* ── Generate View ── */}
         {activeNav === 'generate' && (
@@ -253,7 +263,7 @@ export default function DashboardPage() {
 
             {/* Results feed */}
             {results.length > 0 && !loading && (
-              <div className="flex-1 px-8 py-8 space-y-4 overflow-y-auto">
+              <div className="flex-1 px-4 md:px-8 py-8 space-y-4 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-sm font-medium text-white/50">Generated for &ldquo;{topic}&rdquo;</h2>
                   <button
@@ -359,7 +369,7 @@ export default function DashboardPage() {
 
         {/* ── Settings View ── */}
         {activeNav === 'settings' && (
-          <div className="flex-1 overflow-y-auto px-8 py-8">
+          <div className="flex-1 overflow-y-auto px-6 md:px-8 py-8">
             <h2 className="text-xl font-bold mb-6">Settings</h2>
             <div className="space-y-4 max-w-md">
               <div className="bg-[#1a1a1a] border border-white/[0.07] rounded-2xl px-5 py-4">
@@ -386,6 +396,23 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* ── Mobile bottom nav ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-[#1a1a1a] border-t border-white/[0.06] flex items-center">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveNav(item.id)}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs transition-colors ${
+              activeNav === item.id ? 'text-white' : 'text-white/30'
+            }`}
+          >
+            <span className="text-lg leading-none">{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
     </div>
   )
 }
