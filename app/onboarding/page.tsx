@@ -49,10 +49,14 @@ const STEPS = [
   },
 ]
 
+type Mode = 'qa' | 'paste'
+
 export default function OnboardingPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<Mode>('qa')
   const [currentStep, setCurrentStep] = useState(0)
   const [answers, setAnswers] = useState<string[]>(['', '', '', '', ''])
+  const [pastWriting, setPastWriting] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [skipped, setSkipped] = useState<boolean[]>([false, false, false, false, false])
@@ -96,17 +100,22 @@ export default function OnboardingPage() {
   }
 
   function buildVoiceSamples(): string {
-    return STEPS.map((s, i) => {
+    const parts: string[] = []
+    const qaParts = STEPS.map((s, i) => {
       const a = answers[i].trim()
       if (!a || skipped[i]) return null
       return `Q: ${s.question}\nA: ${a}`
-    }).filter(Boolean).join('\n\n')
+    }).filter(Boolean) as string[]
+    if (qaParts.length > 0) parts.push(qaParts.join('\n\n'))
+    if (pastWriting.trim()) parts.push(`--- Past writing ---\n${pastWriting.trim()}`)
+    return parts.join('\n\n')
   }
 
   async function handleSave(fromSkip = false) {
     const validAnswers = answers.filter((a, i) => a.trim().length > 0 && !skipped[i])
-    if (validAnswers.length < 2 && !fromSkip) {
-      setError('Answer at least 2 questions before continuing.')
+    const hasPaste = pastWriting.trim().length > 0
+    if (validAnswers.length < 2 && !hasPaste && !fromSkip) {
+      setError('Answer at least 2 questions or paste some past writing to continue.')
       return
     }
 
@@ -135,9 +144,24 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-[#0f0f0f] text-white flex flex-col">
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
-        <span className="text-base font-bold tracking-tight">Kreation •))</span>
-        <span className="text-xs text-white/25">{currentStep + 1} of {STEPS.length}</span>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+        <span className="text-sm font-bold tracking-tight">Kreation •))</span>
+        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+          <button
+            onClick={() => setMode('qa')}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${mode === 'qa' ? 'bg-white text-black' : 'text-white/40 hover:text-white/70'}`}
+          >
+            Q&amp;A
+          </button>
+          <button
+            onClick={() => setMode('paste')}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${mode === 'paste' ? 'bg-white text-black' : 'text-white/40 hover:text-white/70'}`}
+          >
+            Paste writing
+          </button>
+        </div>
+        {mode === 'qa' && <span className="text-xs text-white/25">{currentStep + 1}/{STEPS.length}</span>}
+        {mode === 'paste' && <span className="text-xs text-white/25 invisible">0/0</span>}
       </div>
 
       {/* Progress bar */}
@@ -148,7 +172,38 @@ export default function OnboardingPage() {
         />
       </div>
 
-      {/* Main content */}
+      {/* Paste mode */}
+      {mode === 'paste' && (
+        <div className="flex-1 flex flex-col px-6 py-8 max-w-xl w-full mx-auto">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2">Paste your past writing</h2>
+            <p className="text-white/40 text-sm leading-relaxed">Old tweets, captions, essays, texts — anything you&apos;ve written in your own voice. The more the better.</p>
+          </div>
+          <textarea
+            value={pastWriting}
+            onChange={e => setPastWriting(e.target.value)}
+            placeholder={`Paste your old posts here...\n\n"Just shipped something that took 3 weeks. Feels impossible until it isn't."\n\n"Hot take: consistency is overrated. Intensity beats it every time."\n\nSeparate pieces with a blank line.`}
+            className="flex-1 min-h-[300px] bg-[#1a1a1a] border border-white/10 rounded-2xl px-5 py-4 text-sm leading-relaxed focus:outline-none focus:border-white/30 transition-colors placeholder:text-white/15 resize-none mb-4"
+          />
+          {pastWriting.trim().length > 0 && (
+            <p className="text-xs text-white/25 mb-4">{pastWriting.trim().split('\n').filter(l => l.trim()).length} lines captured</p>
+          )}
+          {error && (
+            <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-3 mb-4">{error}</div>
+          )}
+          <button
+            onClick={() => handleSave(false)}
+            disabled={pastWriting.trim().length < 20 || loading}
+            className="w-full bg-white text-black rounded-xl py-3 text-sm font-semibold hover:bg-white/90 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Saving…' : 'Save & Continue →'}
+          </button>
+          <p className="text-xs text-white/20 text-center mt-4">You can also answer Q&amp;A questions for even better results</p>
+        </div>
+      )}
+
+      {/* Q&A Main content */}
+      {mode === 'qa' && (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-xl">
 
@@ -245,6 +300,7 @@ export default function OnboardingPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }

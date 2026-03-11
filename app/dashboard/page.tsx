@@ -175,15 +175,15 @@ export default function DashboardPage() {
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0f0f0f] border-b border-white/[0.06] flex items-center justify-between px-5 py-4">
-        <span className="text-base font-bold tracking-tight">Kreation •))</span>
-        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-20 bg-[#0f0f0f] border-b border-white/[0.06] flex items-center justify-between px-4 py-2.5">
+        <span className="text-sm font-bold tracking-tight">Kreation •))</span>
+        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-semibold">
           {userName.charAt(0).toUpperCase()}
         </div>
       </div>
 
       {/* ── Main ── */}
-      <main className="flex-1 flex flex-col overflow-hidden md:pt-0 pt-[57px] pb-[64px] md:pb-0">
+      <main className="flex-1 flex flex-col overflow-hidden md:pt-0 pt-[45px] pb-[64px] md:pb-0">
 
         {/* ── Generate View ── */}
         {activeNav === 'generate' && (
