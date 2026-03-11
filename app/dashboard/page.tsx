@@ -42,6 +42,8 @@ export default function DashboardPage() {
   const [copiedPlatform, setCopiedPlatform] = useState<Platform | null>(null)
   const [activeNav, setActiveNav] = useState<NavView>('generate')
   const [history, setHistory] = useState<{ topic: string; results: PlatformResult[]; timestamp: string }[]>([])
+  const [feedback, setFeedback] = useState<Record<string, 'up' | 'down'>>({})
+  const [feedbackSending, setFeedbackSending] = useState<Record<string, boolean>>({})
 
   const loadProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -118,6 +120,26 @@ export default function DashboardPage() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  async function handleFeedback(platform: Platform, content: string, rating: 'up' | 'down') {
+    const key = `${platform}-${topic}`
+    // Toggle off if same rating
+    if (feedback[key] === rating) {
+      setFeedback(prev => { const n = { ...prev }; delete n[key]; return n })
+      return
+    }
+    setFeedbackSending(prev => ({ ...prev, [key]: true }))
+    setFeedback(prev => ({ ...prev, [key]: rating }))
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, platform, content, rating }),
+      })
+    } finally {
+      setFeedbackSending(prev => { const n = { ...prev }; delete n[key]; return n })
+    }
   }
 
   const NAV_ITEMS = [
@@ -293,7 +315,32 @@ export default function DashboardPage() {
 
                     <p className="text-sm leading-relaxed whitespace-pre-wrap text-white/80">{r.content}</p>
 
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between">
+                      {/* Feedback */}
+                      <div className="flex items-center gap-1">
+                        {(['up', 'down'] as const).map((rating) => {
+                          const key = `${r.platform}-${topic}`
+                          const active = feedback[key] === rating
+                          const sending = feedbackSending[key]
+                          return (
+                            <button
+                              key={rating}
+                              onClick={() => handleFeedback(r.platform as Platform, r.content, rating)}
+                              disabled={sending}
+                              className={`text-base px-2 py-1 rounded-lg transition-all ${
+                                active
+                                  ? rating === 'up'
+                                    ? 'bg-green-400/15 text-green-400'
+                                    : 'bg-red-400/15 text-red-400'
+                                  : 'text-white/20 hover:text-white/50'
+                              }`}
+                            >
+                              {rating === 'up' ? '👍' : '👎'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {/* Copy */}
                       <button
                         onClick={() => handleCopy(r.platform as Platform, r.content)}
                         className={`text-xs border px-3 py-1.5 rounded-lg transition-all ${
