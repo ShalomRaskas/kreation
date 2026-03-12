@@ -37,8 +37,10 @@ export default function EditorPage() {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [transcribing, setTranscribing] = useState(false)
   const [videoId, setVideoId] = useState<string>('')
   const [videoExt, setVideoExt] = useState<string>('.mp4')
+  const [segments, setSegments] = useState<{start: number, end: number, text: string}[]>([])
   const [processing, setProcessing] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState<string>('')
 
@@ -86,9 +88,33 @@ export default function EditorPage() {
         xhr.send(formData)
       })
 
-      setVideoId(result.videoId)
-      setVideoExt(result.ext || '.mp4')
+      const vid = result.videoId
+      const vext = result.ext || '.mp4'
+      setVideoId(vid)
+      setVideoExt(vext)
       if (result.duration) setVideoDuration(result.duration)
+
+      // Auto-transcribe
+      setUploading(false)
+      setUploadProgress(0)
+      setTranscribing(true)
+      try {
+        const txRes = await fetch(`${VIDEO_SERVER}/transcribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: vid, ext: vext }),
+        })
+        const txData = await txRes.json()
+        if (txRes.ok && txData.transcript) {
+          setTranscript(txData.transcript)
+          setSegments(txData.segments || [])
+        }
+      } catch {
+        // Non-fatal — user can paste manually
+      } finally {
+        setTranscribing(false)
+      }
+
       setStep('transcript')
     } catch (err) {
       setError('Upload failed. Check your connection and try again.')
@@ -185,6 +211,8 @@ export default function EditorPage() {
     setVideoId('')
     setDownloadUrl('')
     setUploadProgress(0)
+    setSegments([])
+    setTranscribing(false)
   }
 
   const STEPS = [
@@ -310,6 +338,17 @@ export default function EditorPage() {
                     className="h-full bg-white rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Transcribing state */}
+            {transcribing && (
+              <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-white/70">Transcribing your video…</p>
+                  <p className="text-xs text-white/30 mt-0.5">This takes 30–60 seconds</p>
                 </div>
               </div>
             )}
