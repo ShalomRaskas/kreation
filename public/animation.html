@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kreation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0f0f0f;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .container {
+    text-align: center;
+    width: 100%;
+    max-width: 480px;
+    padding: 32px 24px;
+  }
+
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeIn 0.8s ease forwards 0.2s;
+  }
+
+  .voice-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.25);
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeIn 0.6s ease forwards 0.8s;
+  }
+
+  .card {
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 20px 22px;
+    text-align: left;
+    min-height: 90px;
+    position: relative;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: slideUp 0.5s ease forwards 1.2s;
+  }
+
+  .platform {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+
+  .text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.85);
+    min-height: 44px;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: rgba(255,255,255,0.6);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  .cursor.hidden { opacity: 0; }
+
+  .dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.3); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">Kreation •))</div>
+  <div class="voice-label">Your voice. Everywhere.</div>
+  <div class="card">
+    <div class="platform" id="platform">X</div>
+    <div class="text" id="text"><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>
+  </div>
+</div>
+
+<script>
+  const posts = [
+    {
+      platform: 'X',
+      text: 'consistency is a myth. intensity is what actually moves the needle.',
+    },
+    {
+      platform: 'LinkedIn',
+      text: 'Everyone talks about showing up every day. Nobody talks about showing up with everything you have. Intensity beats consistency. Every time.',
+    },
+    {
+      platform: 'Instagram',
+      text: 'stop grinding. start obsessing. there\'s a difference 🔥',
+    },
+    {
+      platform: 'X',
+      text: 'just shipped something i\'ve been building for 3 months. feels impossible until it isn\'t.',
+    },
+    {
+      platform: 'LinkedIn',
+      text: 'Three months ago I started building something with no roadmap, no team, no guarantee it would work. Today I shipped it. The only thing that got me here was not stopping.',
+    },
+  ]
+
+  const textEl = document.getElementById('text')
+  const platformEl = document.getElementById('platform')
+  let index = 0
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms))
+  }
+
+  async function typeText(str) {
+    textEl.innerHTML = ''
+    const cursor = document.createElement('span')
+    cursor.className = 'cursor'
+    textEl.appendChild(cursor)
+
+    for (let i = 0; i < str.length; i++) {
+      cursor.insertAdjacentText('beforebegin', str[i])
+      await sleep(28 + Math.random() * 18)
+    }
+
+    await sleep(2200)
+    cursor.className = 'cursor hidden'
+    await sleep(400)
+  }
+
+  async function showThinking() {
+    textEl.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>'
+    await sleep(900)
+  }
+
+  async function fadeCard(dir) {
+    const card = document.querySelector('.card')
+    card.style.transition = 'opacity 0.3s ease, transform 0.3s ease'
+    card.style.opacity = 0
+    card.style.transform = dir === 'out' ? 'translateY(-8px)' : 'translateY(8px)'
+    await sleep(320)
+    card.style.transform = dir === 'out' ? 'translateY(8px)' : 'translateY(0)'
+    card.style.opacity = 1
+  }
+
+  async function run() {
+    await sleep(1800)
+
+    while (true) {
+      const post = posts[index % posts.length]
+      platformEl.textContent = post.platform
+      await showThinking()
+      await typeText(post.text)
+      await fadeCard('out')
+      index++
+      platformEl.textContent = posts[index % posts.length].platform
+      await sleep(100)
+      await fadeCard('in')
+    }
+  }
+
+  run()
+</script>
+</body>
+</html>
