@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const VIDEO_SERVER = 'http://165.227.186.223/video'
+const VIDEO_SERVER = 'https://krreation.duckdns.org'
 
 export async function POST(req: NextRequest) {
   try {

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+const VIDEO_SERVER = 'https://krreation.duckdns.org'
 
 interface Clip {
   start: number
@@ -60,27 +60,35 @@ export default function EditorPage() {
     const url = URL.createObjectURL(file)
     setVideoURL(url)
 
-    // Upload directly to Supabase Storage (HTTPS)
+    // Upload to video server over HTTPS
     setUploading(true)
     setUploadProgress(0)
 
     try {
-      const supabase = createClient()
-      const ext = file.name.split('.').pop() || 'mp4'
-      const storageName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const formData = new FormData()
+      formData.append('video', file)
 
-      const { data, error } = await supabase.storage
-        .from('videos')
-        .upload(`uploads/${storageName}`, file, {
-          contentType: file.type,
-          upsert: false,
-        })
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${VIDEO_SERVER}/upload`)
 
-      if (error) throw new Error(error.message)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      }
 
-      setVideoId(data.path)
-      setVideoExt(`.${ext}`)
-      setUploadProgress(100)
+      const result = await new Promise<{videoId: string, ext: string, duration: number}>((resolve, reject) => {
+        xhr.onload = () => {
+          if (xhr.status === 200) resolve(JSON.parse(xhr.responseText))
+          else reject(new Error('Upload failed'))
+        }
+        xhr.onerror = () => reject(new Error('Upload failed'))
+        xhr.send(formData)
+      })
+
+      setVideoId(result.videoId)
+      setVideoExt(result.ext || '.mp4')
+      if (result.duration) setVideoDuration(result.duration)
       setStep('transcript')
     } catch (err) {
       setError('Upload failed. Check your connection and try again.')
@@ -130,17 +138,18 @@ export default function EditorPage() {
       if (videoId && plan.clips?.length > 0) {
         setProcessing(true)
         try {
-          const processRes = await fetch('/api/video/process', {
+          const processRes = await fetch(`${VIDEO_SERVER}/process`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              storagePath: videoId,
+              videoId,
+              ext: videoExt,
               clips: plan.clips.map((c: Clip) => ({ start: c.start, end: c.end })),
             }),
           })
           const processData = await processRes.json()
           if (processRes.ok && processData.downloadUrl) {
-            setDownloadUrl(processData.downloadUrl)
+            setDownloadUrl(`${VIDEO_SERVER}${processData.downloadUrl}`)
           }
         } catch {
           // Non-fatal — user still gets the edit plan
