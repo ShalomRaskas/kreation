@@ -24,7 +24,7 @@ interface PlatformResult {
   content: string
 }
 
-type NavView = 'generate' | 'history' | 'settings'
+type NavView = 'generate' | 'history' | 'settings' | 'editor'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -144,6 +144,7 @@ export default function DashboardPage() {
 
   const NAV_ITEMS = [
     { id: 'generate' as NavView, label: 'Generate', icon: '✦' },
+    { id: 'editor' as NavView, label: 'Video Editor', icon: '▶' },
     { id: 'history' as NavView, label: 'History', icon: '◷' },
     { id: 'settings' as NavView, label: 'Settings', icon: '⚙' },
   ]
@@ -163,7 +164,7 @@ export default function DashboardPage() {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => item.id === 'editor' ? router.push('/editor') : setActiveNav(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
                 activeNav === item.id
                   ? 'bg-white/10 text-white'
