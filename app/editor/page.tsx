@@ -3,6 +3,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
+const VIDEO_SERVER = 'http://165.227.186.223:3838'
+
 interface Clip {
   start: number
   end: number
@@ -34,6 +36,12 @@ export default function EditorPage() {
   const [videoURL, setVideoURL] = useState<string>('')
   const [videoDuration, setVideoDuration] = useState<number>(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [videoId, setVideoId] = useState<string>('')
+  const [videoExt, setVideoExt] = useState<string>('.mp4')
+  const [processing, setProcessing] = useState(false)
+  const [downloadUrl, setDownloadUrl] = useState<string>('')
 
   const [transcript, setTranscript] = useState('')
   const [editPrompt, setEditPrompt] = useState('')
@@ -43,7 +51,7 @@ export default function EditorPage() {
   const [editPlan, setEditPlan] = useState<EditPlan | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const handleFile = useCallback((file: File) => {
+  const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('video/')) {
       setError('Please upload a video file (mp4, mov, webm)')
       return
@@ -52,7 +60,45 @@ export default function EditorPage() {
     setVideoFile(file)
     const url = URL.createObjectURL(file)
     setVideoURL(url)
-    setStep('transcript')
+
+    // Upload to video server
+    setUploading(true)
+    setUploadProgress(0)
+    try {
+      const formData = new FormData()
+      formData.append('video', file)
+
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${VIDEO_SERVER}/upload`)
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      }
+
+      const result = await new Promise<{videoId: string, ext: string, duration: number}>((resolve, reject) => {
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText)
+            resolve(data)
+          } else {
+            reject(new Error('Upload failed'))
+          }
+        }
+        xhr.onerror = () => reject(new Error('Upload failed'))
+        xhr.send(formData)
+      })
+
+      setVideoId(result.videoId)
+      setVideoExt(result.ext || '.mp4')
+      if (result.duration) setVideoDuration(result.duration)
+      setStep('transcript')
+    } catch (err) {
+      setError('Upload failed. Check your connection and try again.')
+    } finally {
+      setUploading(false)
+    }
   }, [])
 
   const handleDrop = useCallback(
@@ -88,7 +134,33 @@ export default function EditorPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to generate edit plan')
-      setEditPlan(data.editPlan)
+      const plan = data.editPlan
+      setEditPlan(plan)
+
+      // Kick off actual video processing
+      if (videoId && plan.clips?.length > 0) {
+        setProcessing(true)
+        try {
+          const processRes = await fetch(`${VIDEO_SERVER}/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId,
+              ext: videoExt,
+              clips: plan.clips.map((c: Clip) => ({ start: c.start, end: c.end })),
+            }),
+          })
+          const processData = await processRes.json()
+          if (processRes.ok && processData.downloadUrl) {
+            setDownloadUrl(`${VIDEO_SERVER}${processData.downloadUrl}`)
+          }
+        } catch {
+          // Non-fatal — user still gets the edit plan
+        } finally {
+          setProcessing(false)
+        }
+      }
+
       setStep('result')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -113,6 +185,9 @@ export default function EditorPage() {
     setEditPrompt('')
     setEditPlan(null)
     setError('')
+    setVideoId('')
+    setDownloadUrl('')
+    setUploadProgress(0)
   }
 
   const STEPS = [
@@ -226,8 +301,24 @@ export default function EditorPage() {
               </p>
             </div>
 
+            {/* Upload progress */}
+            {uploading && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-white/40">
+                  <span>Uploading {videoFile?.name}…</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Video preview */}
-            {videoURL && (
+            {videoURL && !uploading && (
               <div className="rounded-xl overflow-hidden bg-black border border-white/[0.06]">
                 <video
                   ref={videoRef}
@@ -435,18 +526,30 @@ export default function EditorPage() {
               </div>
             )}
 
-            {/* Coming soon */}
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white/60">Auto-cut coming soon</p>
-                <p className="text-xs text-white/25 mt-0.5">
-                  Kreation will apply these cuts automatically and export a ready-to-post file
-                </p>
+            {/* Download / processing state */}
+            {processing && (
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 flex items-center gap-4">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-white/70">Cutting your video…</p>
+                  <p className="text-xs text-white/30 mt-0.5">FFmpeg is applying the edit plan</p>
+                </div>
               </div>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-white/5 text-white/30 border border-white/[0.06]">
-                Phase 2
-              </span>
-            </div>
+            )}
+
+            {downloadUrl && !processing && (
+              <a
+                href={downloadUrl}
+                download
+                className="flex items-center justify-between bg-white text-black rounded-xl px-5 py-4 font-semibold hover:bg-white/90 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-bold">Download edited video</p>
+                  <p className="text-xs text-black/50 mt-0.5">Ready to post</p>
+                </div>
+                <span className="text-xl">↓</span>
+              </a>
+            )}
 
             <div className="flex gap-3">
               <button
