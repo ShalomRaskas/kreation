@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
-const VIDEO_SERVER = 'http://165.227.186.223:3838'
+const VIDEO_SERVER = 'http://165.227.186.223/video'
 
 interface Clip {
   start: number
