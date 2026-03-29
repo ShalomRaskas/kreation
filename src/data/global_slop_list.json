@@ -1,0 +1,36 @@
+{
+  "forbidden_words": [
+    "delve", "tapestry", "leverage", "comprehensive", "landscape",
+    "robust", "synergy", "paradigm", "holistic", "empower",
+    "curated", "seamless", "streamline", "utilize", "facilitate",
+    "elevate", "innovative", "groundbreaking", "transformative",
+    "game-changer", "cutting-edge", "spearhead", "navigate",
+    "unleash", "harness", "catalyze", "amplify", "skyrocket",
+    "supercharge", "revolutionize", "disrupt", "reimagine",
+    "redefine", "reinvent", "drill down", "circle back",
+    "touch base", "move the needle", "low-hanging fruit",
+    "boil the ocean", "peel back the onion", "unpack"
+  ],
+  "forbidden_openers": [
+    "In the ever-evolving",
+    "In today's fast-paced",
+    "It's not about",
+    "At the end of the day",
+    "Let's dive deep",
+    "Let's explore",
+    "Here's the thing:",
+    "The truth is,",
+    "The reality is,",
+    "The fact of the matter is",
+    "Needless to say,",
+    "It goes without saying",
+    "As we all know,",
+    "Whether you're a",
+    "In a world where"
+  ],
+  "generic_adjectives": [
+    "amazing", "incredible", "awesome", "fantastic", "wonderful",
+    "great", "excellent", "outstanding", "remarkable", "extraordinary",
+    "impactful", "meaningful", "powerful", "actionable", "scalable"
+  ]
+}

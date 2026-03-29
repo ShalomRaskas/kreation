@@ -1,0 +1,36 @@
+{
+  "jargon": [
+    "going all in",
+    "that's the thing",
+    "authenticity equals growth",
+    "mentally unlock",
+    "yeah so",
+    "a ton of money",
+    "cooked",
+    "proper",
+    "market it correctly",
+    "hot take"
+  ],
+  "signature_phrases": [
+    "that's the thing",
+    "authenticity equals growth",
+    "sounds so generic",
+    "mentally unlock",
+    "going all in"
+  ],
+  "sentence_structures": [
+    "Opens with a 1–2 word exclamatory hook before expanding the thought",
+    "Uses 'right' as a trailing confirmation marker at the end of statements",
+    "Thoughts loop back and self-correct mid-sentence before landing",
+    "Runs thoughts together with repeated 'and' conjunctions — breathless forward rhythm",
+    "Uses parenthetical asides to add colour without breaking the main thought",
+    "Ends on a flat declarative that lands softly rather than wrapping up cleanly",
+    "Builds rhythm through triplet phrasing and repetition to land emotional points"
+  ],
+  "rhythm_markers": ["right", "so", "okay", "basically", "like", "yeah so"],
+  "authentic_intensifiers": ["proper", "actual", "raw", "cooked", "real"],
+  "energy_pattern": "escalates descriptively mid-sentence then collapses into incompletion or a resigned summary",
+  "avoid_in_output": [
+    "in fact", "simply just", "everyone's doing it", "definitely", "truly", "somehow"
+  ]
+}

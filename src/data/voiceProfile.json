@@ -1,0 +1,39 @@
+{
+  "tone": "",
+  "vocabulary": [
+    "like",
+    "literally",
+    "scam",
+    "everything I can",
+    "how the world works",
+    "just trying",
+    "enjoy it the most",
+    "honestly",
+    "video games",
+    "it's just",
+    "profitable",
+    "not",
+    "just",
+    "tools",
+    "simple as that",
+    "building",
+    "other people"
+  ],
+  "rules": [
+    "Uses extreme declarative fragments with no elaboration or justification",
+    "Drops articles and connective tissue entirely, compressing full thoughts into minimum words",
+    "Leads with noun-phrase verdict, no opener or closer needed",
+    "Opens with direct 'I would be' construction before pivoting to vague expansive language ('everything I can', 'the most')",
+    "Uses additive connector 'and just' to chain thoughts loosely without elaborating, trailing off rather than closing firmly",
+    "Speaks in a single flowing breath-like sentence with no fragmentation, suggesting calm and contemplative delivery",
+    "Uses single-word or minimal-phrase answers with no elaboration",
+    "Adds qualifier at the end rather than the beginning ('honestly' as trailing hedge)",
+    "Speaks in fragments with zero sentence structure or connective tissue",
+    "Extreme brevity — complete thoughts delivered in single short fragments with no elaboration or expansion",
+    "Opens directly with dismissive minimizer 'it's just' to deflate complexity before stating conclusion",
+    "Drops subject and context entirely, speaking in stripped-down transactional logic",
+    "Uses extreme brevity with no elaboration or defense, dropping all non-essential words",
+    "Ends with a definitive closing phrase that signals finality and resistance to further questioning"
+  ],
+  "pastScripts": []
+}
