@@ -8,9 +8,11 @@ const VIBES = [
   { id: 'cinematic',   label: 'Cinematic',   desc: 'Composed, intentional, breathing room' },
 ]
 
+const STEPS = ['Upload', 'Edit', 'Processing', 'Trim', 'Captions']
+
 const s = {
   page: {
-    maxWidth: 680,
+    maxWidth: 720,
     margin: '0 auto',
     padding: '48px 24px',
     fontFamily: 'inherit',
@@ -45,7 +47,42 @@ const s = {
     fontFamily: 'inherit',
     minHeight: 90,
   },
+  input: {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    padding: '10px 12px',
+    color: '#fafafa',
+    fontSize: 14,
+    outline: 'none',
+    fontFamily: 'inherit',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  inputSmall: {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 6,
+    padding: '8px 10px',
+    color: '#fafafa',
+    fontSize: 13,
+    outline: 'none',
+    fontFamily: 'inherit',
+    width: 90,
+    boxSizing: 'border-box',
+  },
   btnPrimary: {
+    padding: '14px 24px',
+    background: '#fff',
+    color: '#0a0a0a',
+    border: 'none',
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    letterSpacing: '-0.01em',
+  },
+  btnPrimaryFull: {
     width: '100%',
     padding: '14px 20px',
     background: '#fff',
@@ -58,6 +95,16 @@ const s = {
     letterSpacing: '-0.01em',
   },
   btnGhost: {
+    padding: '14px 24px',
+    background: 'transparent',
+    color: 'rgba(255,255,255,0.4)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  btnGhostFull: {
     width: '100%',
     padding: '14px 20px',
     background: 'transparent',
@@ -65,6 +112,16 @@ const s = {
     border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: 8,
     fontSize: 14,
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  btnDanger: {
+    padding: '7px 12px',
+    background: 'transparent',
+    color: '#f87171',
+    border: '1px solid rgba(248,113,113,0.25)',
+    borderRadius: 6,
+    fontSize: 12,
     fontWeight: 500,
     cursor: 'pointer',
   },
@@ -87,32 +144,79 @@ const s = {
   error: {
     color: '#f87171',
     fontSize: 13,
-    marginTop: 12,
+    marginTop: 16,
   },
 }
 
 export default function EditorPage() {
-  const [state,       setState]      = useState('upload')   // 'upload' | 'edit' | 'processing'
-  const [videoId,     setVideoId]    = useState('')
-  const [videoExt,    setVideoExt]   = useState('')
-  const [userPrompt,  setUserPrompt] = useState('')
-  const [vibe,        setVibe]       = useState('balanced')
-  const [jobId,       setJobId]      = useState('')
-  const [jobStatus,   setJobStatus]  = useState('')
-  const [jobSummary,  setJobSummary] = useState('')
-  const [outputId,    setOutputId]   = useState('')
-  const [progress,    setProgress]   = useState(0)
-  const [uploadPct,   setUploadPct]  = useState(0)
-  const [isUploading, setIsUploading] = useState(false)
-  const [isDragging,  setIsDragging] = useState(false)
-  const [error,       setError]      = useState('')
+  const [step, setStep] = useState(1)
+  const [error, setError] = useState('')
 
-  const fileInputRef = useRef(null)
-  const pollRef      = useRef(null)
+  // Step 1 — Upload
+  const [videoId,    setVideoId]    = useState('')
+  const [videoExt,   setVideoExt]   = useState('')
+  const [isUploading,setIsUploading]= useState(false)
+  const [uploadPct,  setUploadPct]  = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+
+  // Step 2 — Edit
+  const [userPrompt, setUserPrompt] = useState('')
+  const [vibe,       setVibe]       = useState('balanced')
+
+  // Step 3 — Processing
+  const [jobProgress,    setJobProgress]    = useState('')
+  const [processingDone, setProcessingDone] = useState(false)
+  const [outputId,       setOutputId]       = useState('')
+  const [summary,        setSummary]        = useState('')
+  const [clips,          setClips]          = useState([])
+  const [captionSegments,setCaptionSegments]= useState([])
+
+  // Step 4 — Trim
+  const [remainingClips, setRemainingClips] = useState([])
+  const [trimRendering,  setTrimRendering]  = useState(false)
+
+  // Step 5 — Captions
+  const [editedSegments, setEditedSegments] = useState([])
+  const [captionStyle,   setCaptionStyle]   = useState('subtitle')
+  const [exportRendering,setExportRendering]= useState(false)
+  const [exportDone,     setExportDone]     = useState(false)
+  const [exportOutputId, setExportOutputId] = useState('')
+
+  // B-roll
+  const [brollItems,   setBrollItems]   = useState([]) // { key, file, mediaId, insertAt, duration, uploading }
+  const [brollApplying,setBrollApplying]= useState(false)
+  const [brollDone,    setBrollDone]    = useState(false)
+  const [brollOutputId,setBrollOutputId]= useState('')
+
+  const fileInputRef   = useRef(null)
+  const brollInputRef  = useRef(null)
+  const pollRef        = useRef(null)
+  const brollKeyRef    = useRef(0)
 
   useEffect(() => () => clearInterval(pollRef.current), [])
 
-  // ── Upload ────────────────────────────────────────────────────────────────
+  // ── Generic poll ─────────────────────────────────────────────────────────────
+  const poll = (jobId, onProgress, onDone, onError) => {
+    clearInterval(pollRef.current)
+    pollRef.current = setInterval(async () => {
+      try {
+        const res  = await fetch(`${VIDEO_SERVER}/job/${jobId}`)
+        const data = await res.json()
+        if (data.progress != null) onProgress(data.progress)
+        if (data.status === 'done') {
+          clearInterval(pollRef.current)
+          onDone(data)
+        } else if (data.status === 'error') {
+          clearInterval(pollRef.current)
+          onError(data.error || 'Processing failed.')
+        }
+      } catch {
+        // transient — keep polling
+      }
+    }, 2000)
+  }
+
+  // ── Step 1: Upload ────────────────────────────────────────────────────────────
   const startUpload = (file) => {
     if (!file) return
     const allowed = ['video/mp4', 'video/quicktime', 'video/webm']
@@ -129,44 +233,39 @@ export default function EditorPage() {
 
     const xhr = new XMLHttpRequest()
     xhr.open('POST', `${VIDEO_SERVER}/upload`)
-
     xhr.upload.addEventListener('progress', e => {
       if (e.lengthComputable) setUploadPct(Math.round((e.loaded / e.total) * 100))
     })
-
     xhr.addEventListener('load', () => {
       setIsUploading(false)
       if (xhr.status === 200) {
         try {
-          const data = JSON.parse(xhr.responseText)
+          const data   = JSON.parse(xhr.responseText)
           const rawExt = (data.ext || file.name.split('.').pop()).replace(/^\./, '')
           setVideoId(data.videoId)
           setVideoExt(rawExt)
-          setState('edit')
+          setStep(2)
         } catch {
           setError('Upload succeeded but response was malformed.')
         }
       } else {
-        setError(`Upload failed (${xhr.status}). Check that the video server is running.`)
+        setError(`Upload failed (${xhr.status}).`)
       }
     })
-
     xhr.addEventListener('error', () => {
       setIsUploading(false)
       setError('Upload failed — check that the video server is running.')
     })
-
     xhr.send(formData)
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
     setIsDragging(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) startUpload(file)
+    startUpload(e.dataTransfer.files?.[0])
   }
 
-  // ── Edit ──────────────────────────────────────────────────────────────────
+  // ── Step 2: Edit ──────────────────────────────────────────────────────────────
   const handleEdit = async () => {
     setError('')
     try {
@@ -177,60 +276,175 @@ export default function EditorPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Edit request failed')
-      setJobId(data.jobId)
-      setJobStatus('queued')
-      setProgress(0)
-      setState('processing')
-      startPolling(data.jobId)
+      setStep(3)
+      setProcessingDone(false)
+      setJobProgress('')
+      poll(
+        data.jobId,
+        (prog) => setJobProgress(prog),
+        (result) => {
+          setOutputId(result.outputId || result.downloadUrl?.split('/').pop() || data.jobId)
+          setSummary(result.summary || result.cutSummary || '')
+          setClips(result.clips || [])
+          setCaptionSegments(result.captionSegments || [])
+          setProcessingDone(true)
+        },
+        (msg) => setError(msg),
+      )
     } catch (e) {
       setError(e.message)
     }
   }
 
-  // ── Poll ──────────────────────────────────────────────────────────────────
-  const startPolling = (jid) => {
-    clearInterval(pollRef.current)
-    pollRef.current = setInterval(async () => {
-      try {
-        const res  = await fetch(`${VIDEO_SERVER}/job/${jid}`)
-        const data = await res.json()
-        setJobStatus(data.status)
-        if (data.progress != null) setProgress(data.progress)
-        if (data.status === 'done') {
-          clearInterval(pollRef.current)
-          setOutputId(data.outputId || data.downloadUrl?.split('/').pop() || jid)
-          setJobSummary(data.summary || data.cutSummary || '')
-          setProgress(100)
-        } else if (data.status === 'error') {
-          clearInterval(pollRef.current)
-          setError(data.error || 'Processing failed.')
-        }
-      } catch {
-        // transient network error — keep polling
-      }
-    }, 2000)
+  // ── Step 4: Trim ──────────────────────────────────────────────────────────────
+  const goToTrim = () => {
+    setRemainingClips(clips.map(c => ({ ...c })))
+    setTrimRendering(false)
+    setStep(4)
   }
 
-  const reset = () => {
-    clearInterval(pollRef.current)
-    setState('upload')
-    setVideoId('')
-    setVideoExt('')
-    setUserPrompt('')
-    setVibe('balanced')
-    setJobId('')
-    setJobStatus('')
-    setJobSummary('')
-    setOutputId('')
-    setProgress(0)
-    setUploadPct(0)
+  const handleApplyTrim = async () => {
     setError('')
+    setTrimRendering(true)
+    try {
+      const res  = await fetch(`${VIDEO_SERVER}/render`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ outputId, clips: remainingClips }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Render failed')
+      poll(
+        data.jobId,
+        () => {},
+        (result) => {
+          if (result.outputId) setOutputId(result.outputId)
+          setTrimRendering(false)
+          setEditedSegments(captionSegments.map(seg => ({ ...seg })))
+          setStep(5)
+        },
+        (msg) => { setError(msg); setTrimRendering(false) },
+      )
+    } catch (e) {
+      setError(e.message)
+      setTrimRendering(false)
+    }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Step 5: Captions + Export ─────────────────────────────────────────────────
+  const goToCaptions = () => {
+    setEditedSegments(captionSegments.map(seg => ({ ...seg })))
+    setExportDone(false)
+    setExportOutputId('')
+    setBrollDone(false)
+    setBrollOutputId('')
+    setBrollItems([])
+    setStep(5)
+  }
+
+  const handleExportWithCaptions = async () => {
+    setError('')
+    setExportRendering(true)
+    try {
+      const res  = await fetch(`${VIDEO_SERVER}/render`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ outputId, captionSegments: editedSegments, captionStyle }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Export failed')
+      poll(
+        data.jobId,
+        () => {},
+        (result) => {
+          setExportOutputId(result.outputId || outputId)
+          setExportRendering(false)
+          setExportDone(true)
+        },
+        (msg) => { setError(msg); setExportRendering(false) },
+      )
+    } catch (e) {
+      setError(e.message)
+      setExportRendering(false)
+    }
+  }
+
+  // ── B-roll ────────────────────────────────────────────────────────────────────
+  const handleBrollFile = (file) => {
+    if (!file || brollItems.length >= 3) return
+    const key = ++brollKeyRef.current
+    setBrollItems(prev => [...prev, { key, file, mediaId: null, insertAt: '', duration: '', uploading: true }])
+
+    const formData = new FormData()
+    formData.append('video', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${VIDEO_SERVER}/upload`)
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          setBrollItems(prev => prev.map(it => it.key === key ? { ...it, mediaId: data.videoId, uploading: false } : it))
+        } catch {
+          setBrollItems(prev => prev.filter(it => it.key !== key))
+          setError('B-roll upload failed.')
+        }
+      } else {
+        setBrollItems(prev => prev.filter(it => it.key !== key))
+        setError('B-roll upload failed.')
+      }
+    })
+    xhr.addEventListener('error', () => {
+      setBrollItems(prev => prev.filter(it => it.key !== key))
+      setError('B-roll upload failed.')
+    })
+    xhr.send(formData)
+  }
+
+  const handleApplyBroll = async () => {
+    setError('')
+    setBrollApplying(true)
+    const placements = brollItems
+      .filter(it => it.mediaId && it.insertAt !== '' && it.duration !== '')
+      .map(it => ({ mediaId: it.mediaId, insertAt: parseFloat(it.insertAt), duration: parseFloat(it.duration) }))
+    const baseId = exportDone ? exportOutputId : outputId
+    try {
+      const res  = await fetch(`${VIDEO_SERVER}/broll`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ outputId: baseId, placements }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'B-roll render failed')
+      poll(
+        data.jobId,
+        () => {},
+        (result) => {
+          setBrollOutputId(result.outputId || baseId)
+          setBrollApplying(false)
+          setBrollDone(true)
+        },
+        (msg) => { setError(msg); setBrollApplying(false) },
+      )
+    } catch (e) {
+      setError(e.message)
+      setBrollApplying(false)
+    }
+  }
+
+  const fmtTime = (secs) => {
+    if (secs == null) return '—'
+    const m   = Math.floor(secs / 60)
+    const sec = (secs % 60).toFixed(1)
+    return `${m}:${sec.padStart(4, '0')}`
+  }
+
+  const downloadId = brollDone ? brollOutputId : exportDone ? exportOutputId : outputId
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div style={s.page}>
 
+      {/* Header */}
       <div style={{ marginBottom: 40 }}>
         <h1 style={{ color: '#fafafa', fontSize: 22, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.03em' }}>
           AI Video Editor
@@ -240,8 +454,51 @@ export default function EditorPage() {
         </p>
       </div>
 
-      {/* ── STATE 1: UPLOAD ─────────────────────────────────────────────── */}
-      {state === 'upload' && (
+      {/* Step indicator */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 40 }}>
+        {STEPS.map((label, i) => {
+          const num    = i + 1
+          const active = step === num
+          const done   = step > num
+          return (
+            <div key={label} style={{ display: 'flex', alignItems: 'flex-start', flex: i < STEPS.length - 1 ? 1 : 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 700,
+                  background: done ? '#fff' : active ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
+                  color: done ? '#0a0a0a' : active ? '#fafafa' : 'rgba(255,255,255,0.2)',
+                  border: `1px solid ${done ? '#fff' : active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                }}>
+                  {done ? '✓' : num}
+                </div>
+                <span style={{
+                  fontSize: 11,
+                  color: active ? '#fafafa' : 'rgba(255,255,255,0.3)',
+                  fontWeight: active ? 600 : 400,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div style={{
+                  flex: 1,
+                  height: 1,
+                  background: done ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)',
+                  marginTop: 14,
+                  marginLeft: 8,
+                  marginRight: 8,
+                }} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── STEP 1: UPLOAD ──────────────────────────────────────────────────── */}
+      {step === 1 && (
         <div
           onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
           onDragLeave={() => setIsDragging(false)}
@@ -249,7 +506,7 @@ export default function EditorPage() {
           onClick={() => !isUploading && fileInputRef.current?.click()}
           style={{
             ...s.card,
-            padding: '64px 32px',
+            padding: '72px 32px',
             textAlign: 'center',
             cursor: isUploading ? 'default' : 'pointer',
             border: `1px solid ${isDragging ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`,
@@ -263,12 +520,9 @@ export default function EditorPage() {
             style={{ display: 'none' }}
             onChange={e => startUpload(e.target.files?.[0])}
           />
-
           {isUploading ? (
             <>
-              <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 20px' }}>
-                Uploading…
-              </p>
+              <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 20px' }}>Uploading…</p>
               <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, height: 4, overflow: 'hidden', maxWidth: 320, margin: '0 auto' }}>
                 <div style={{ background: '#fff', height: '100%', width: `${uploadPct}%`, transition: 'width 0.2s' }} />
               </div>
@@ -276,34 +530,29 @@ export default function EditorPage() {
             </>
           ) : (
             <>
-              <div style={{ color: 'rgba(255,255,255,0.2)', marginBottom: 16 }}>
+              <div style={{ color: 'rgba(255,255,255,0.18)', marginBottom: 16 }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
               </div>
-              <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>
-                Drop your video here
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: 0 }}>
-                MP4, MOV, or WEBM · max 5 minutes
-              </p>
+              <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>Drop your video here</p>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: 0 }}>MP4, MOV, or WEBM · click to browse</p>
             </>
           )}
         </div>
       )}
 
-      {/* ── STATE 2: EDIT ───────────────────────────────────────────────── */}
-      {state === 'edit' && (
+      {/* ── STEP 2: EDIT ────────────────────────────────────────────────────── */}
+      {step === 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
           <div style={s.card}>
-            <label style={s.label}>What do you want to create?</label>
+            <label style={s.label}>Describe your edit</label>
             <textarea
               value={userPrompt}
               onChange={e => setUserPrompt(e.target.value)}
-              placeholder="Describe your edit — e.g. 'Remove all pauses and hesitations, keep only the confident moments, cut to 60 seconds'"
+              placeholder="e.g. Remove all pauses and hesitations, keep only the confident moments, cut to 60 seconds"
               style={s.textarea}
               autoFocus
             />
@@ -317,10 +566,10 @@ export default function EditorPage() {
                   key={v.id}
                   onClick={() => setVibe(v.id)}
                   style={{
-                    flex: 1, padding: '14px 12px', borderRadius: 10, cursor: 'pointer',
-                    background: vibe === v.id ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${vibe === v.id ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.06)'}`,
-                    transition: 'all 0.15s', textAlign: 'left',
+                    flex: 1, padding: '14px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                    background: vibe === v.id ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${vibe === v.id ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}`,
+                    transition: 'all 0.15s',
                   }}
                 >
                   <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
@@ -330,67 +579,304 @@ export default function EditorPage() {
             </div>
           </div>
 
-          <button onClick={handleEdit} style={s.btnPrimary}>
+          <button onClick={handleEdit} style={s.btnPrimaryFull} disabled={!userPrompt.trim()}>
             Edit Video
           </button>
 
-          <button onClick={reset} style={s.btnGhost}>
+          <button onClick={() => setStep(1)} style={s.btnGhostFull}>
             ← Upload different video
           </button>
         </div>
       )}
 
-      {/* ── STATE 3: PROCESSING ─────────────────────────────────────────── */}
-      {state === 'processing' && (
+      {/* ── STEP 3: PROCESSING ──────────────────────────────────────────────── */}
+      {step === 3 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={s.card}>
-            {jobStatus === 'done' ? (
+            {!processingDone ? (
               <>
-                <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>
-                  Edit complete
+                <p style={{ color: '#fafafa', fontSize: 14, fontWeight: 600, margin: '0 0 8px' }}>
+                  {jobProgress || 'Processing…'}
                 </p>
-                {jobSummary && (
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, margin: '0 0 24px', lineHeight: 1.6 }}>
-                    {jobSummary}
-                  </p>
-                )}
-                <a
-                  href={`${VIDEO_SERVER}/download/${outputId}`}
-                  download
-                  style={s.btnDownload}
-                >
-                  Download edited video
-                </a>
+                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, height: 3, overflow: 'hidden' }}>
+                  <div style={{ background: '#fff', height: '100%', width: '100%', opacity: 0.4, animation: 'pulse 1.5s ease-in-out infinite' }} />
+                </div>
+                <style>{`@keyframes pulse { 0%,100%{opacity:.2} 50%{opacity:.5} }`}</style>
               </>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <p style={{ color: '#fafafa', fontSize: 14, fontWeight: 600, margin: 0 }}>
-                    {jobStatus === 'queued'     ? 'Queued…'
-                     : jobStatus === 'transcribing' ? 'Transcribing audio…'
-                     : jobStatus === 'analyzing'    ? 'Analyzing footage…'
-                     : jobStatus === 'cutting'      ? 'Cutting clips…'
-                     : 'Processing…'}
+                <p style={{ color: '#fafafa', fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>Edit complete</p>
+                {summary && (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, lineHeight: 1.6, margin: '0 0 28px' }}>
+                    {summary}
                   </p>
-                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>{progress}%</span>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                  <div style={{
-                    background: '#fff',
-                    height: '100%',
-                    width: `${progress}%`,
-                    transition: 'width 0.4s ease',
-                  }} />
+                )}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button onClick={goToTrim} style={{ ...s.btnPrimary, flex: 1 }}>
+                    Trim & Finalize
+                  </button>
+                  <button onClick={goToCaptions} style={{ ...s.btnGhost, flex: 1 }}>
+                    Skip to Captions
+                  </button>
                 </div>
               </>
             )}
           </div>
+        </div>
+      )}
 
-          {jobStatus === 'done' && (
-            <button onClick={reset} style={s.btnGhost}>
-              Edit another video
-            </button>
+      {/* ── STEP 4: MANUAL TRIM ─────────────────────────────────────────────── */}
+      {step === 4 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={s.card}>
+            <label style={s.label}>Clips — {remainingClips.length} remaining</label>
+            {remainingClips.length === 0 ? (
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No clips. All have been removed.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {remainingClips.map((clip, i) => {
+                  const dur = clip.end != null && clip.start != null ? (clip.end - clip.start).toFixed(1) : '—'
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 20 }}>
+                        <div>
+                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Start</div>
+                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.start)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>End</div>
+                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.end)}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Duration</div>
+                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{dur}s</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setRemainingClips(prev => prev.filter((_, j) => j !== i))}
+                        style={s.btnDanger}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleApplyTrim}
+            disabled={trimRendering || remainingClips.length === 0}
+            style={{ ...s.btnPrimaryFull, opacity: trimRendering || remainingClips.length === 0 ? 0.5 : 1 }}
+          >
+            {trimRendering ? 'Rendering…' : 'Apply Trim'}
+          </button>
+
+          <button onClick={goToCaptions} style={s.btnGhostFull}>
+            Skip — go to captions
+          </button>
+        </div>
+      )}
+
+      {/* ── STEP 5: CAPTIONS ────────────────────────────────────────────────── */}
+      {step === 5 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Transcript editor */}
+          <div style={s.card}>
+            <label style={s.label}>Transcript — edit any line</label>
+            {editedSegments.length === 0 ? (
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No caption segments available.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {editedSegments.map((seg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, minWidth: 44, textAlign: 'right', flexShrink: 0 }}>
+                      {fmtTime(seg.start)}
+                    </span>
+                    <input
+                      value={seg.text || ''}
+                      onChange={e => setEditedSegments(prev => prev.map((s, j) => j === i ? { ...s, text: e.target.value } : s))}
+                      style={s.input}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Caption style */}
+          <div style={s.card}>
+            <label style={s.label}>Caption style</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { id: 'subtitle',   label: 'Subtitle Style',   desc: 'Clean lines at the bottom' },
+                { id: 'bold-word',  label: 'Bold Word Style',  desc: 'One word at a time, center screen' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setCaptionStyle(opt.id)}
+                  style={{
+                    flex: 1, padding: '14px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                    background: captionStyle === opt.id ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${captionStyle === opt.id ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}`,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{opt.label}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Export actions */}
+          <button
+            onClick={handleExportWithCaptions}
+            disabled={exportRendering || exportDone}
+            style={{ ...s.btnPrimaryFull, opacity: exportRendering || exportDone ? 0.5 : 1 }}
+          >
+            {exportRendering ? 'Exporting…' : exportDone ? 'Exported ✓' : 'Export with Captions'}
+          </button>
+
+          <a
+            href={`${VIDEO_SERVER}/download/${outputId}`}
+            download
+            style={s.btnGhostFull}
+          >
+            Export without Captions
+          </a>
+
+          {/* Download link after export */}
+          {(exportDone || brollDone) && (
+            <a
+              href={`${VIDEO_SERVER}/download/${downloadId}`}
+              download
+              style={s.btnDownload}
+            >
+              Download finished video
+            </a>
           )}
+
+          {/* B-roll section */}
+          <div style={{ ...s.card, marginTop: 8 }}>
+            <label style={s.label}>Upload B-roll</label>
+            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, margin: '0 0 20px', lineHeight: 1.5 }}>
+              Add up to 3 videos or images to insert into the edit.
+            </p>
+
+            {brollItems.map((item, i) => (
+              <div
+                key={item.key}
+                style={{
+                  padding: '14px 16px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: item.uploading ? 0 : 12 }}>
+                  <span style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>
+                    {item.file.name.length > 32 ? item.file.name.slice(0, 32) + '…' : item.file.name}
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    {item.uploading && (
+                      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>Uploading…</span>
+                    )}
+                    <button
+                      onClick={() => setBrollItems(prev => prev.filter(it => it.key !== item.key))}
+                      style={s.btnDanger}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                {!item.uploading && (
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 6 }}>Insert at (seconds)</div>
+                      <input
+                        type="number"
+                        value={item.insertAt}
+                        min="0"
+                        step="0.1"
+                        onChange={e => setBrollItems(prev => prev.map(it => it.key === item.key ? { ...it, insertAt: e.target.value } : it))}
+                        style={s.inputSmall}
+                        placeholder="0.0"
+                      />
+                    </div>
+                    <div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 6 }}>Duration (seconds)</div>
+                      <input
+                        type="number"
+                        value={item.duration}
+                        min="0.5"
+                        step="0.1"
+                        onChange={e => setBrollItems(prev => prev.map(it => it.key === item.key ? { ...it, duration: e.target.value } : it))}
+                        style={s.inputSmall}
+                        placeholder="3.0"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {brollItems.length < 3 && (
+              <>
+                <input
+                  ref={brollInputRef}
+                  type="file"
+                  accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm,image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => { handleBrollFile(e.target.files?.[0]); e.target.value = '' }}
+                />
+                <button
+                  onClick={() => brollInputRef.current?.click()}
+                  style={{
+                    ...s.btnGhostFull,
+                    borderStyle: 'dashed',
+                    color: 'rgba(255,255,255,0.3)',
+                    fontSize: 13,
+                  }}
+                >
+                  + Add B-roll file ({3 - brollItems.length} remaining)
+                </button>
+              </>
+            )}
+
+            {brollItems.some(it => !it.uploading && it.mediaId) && (
+              <button
+                onClick={handleApplyBroll}
+                disabled={brollApplying}
+                style={{ ...s.btnPrimaryFull, marginTop: 14, opacity: brollApplying ? 0.5 : 1 }}
+              >
+                {brollApplying ? 'Applying B-roll…' : brollDone ? 'B-roll Applied ✓' : 'Apply B-roll'}
+              </button>
+            )}
+
+            {brollDone && (
+              <a
+                href={`${VIDEO_SERVER}/download/${brollOutputId}`}
+                download
+                style={{ ...s.btnDownload, marginTop: 12 }}
+              >
+                Download with B-roll
+              </a>
+            )}
+          </div>
+
         </div>
       )}
 
