@@ -47,7 +47,7 @@ export default function EditorPage() {
   const [duration,     setDuration]     = useState(0)
   const [transcript,   setTranscript]   = useState('')
   const [segments,     setSegments]     = useState([])
-  const [editPrompt,   setEditPrompt]   = useState('') // kept for reset handler
+  const [userPrompt,   setUserPrompt]   = useState('')
   const [vibe,         setVibe]         = useState('balanced')
   const [clips,        setClips]        = useState([])
   const [_jobId,       setJobId]        = useState('')
@@ -231,7 +231,7 @@ export default function EditorPage() {
       const agentRes = await fetch(`${VIDEO_SERVER}/agent-edit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, ext: videoExt, vibe, segments, duration }),
+        body: JSON.stringify({ videoId, ext: videoExt, vibe, segments, duration, userPrompt }),
       })
       const agentData = await agentRes.json()
       console.log('agent-edit status:', agentRes.status, 'response:', agentData)
@@ -558,9 +558,25 @@ export default function EditorPage() {
             <p style={{ color: '#fafafa', fontSize: 16, fontWeight: 600, margin: '0 0 6px' }}>
               What do you want to create?
             </p>
-            <p style={{ color: '#71717a', fontSize: 13, margin: '0 0 24px' }}>
+            <p style={{ color: '#71717a', fontSize: 13, margin: '0 0 16px' }}>
               Describe your edit goal — be specific about length, style, and what to keep or cut.
             </p>
+
+            <textarea
+              value={userPrompt}
+              onChange={e => setUserPrompt(e.target.value)}
+              placeholder="Describe your edit — e.g. 'Remove all pauses and hesitations, keep only confident moments'"
+              rows={3}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 8, padding: '10px 12px',
+                color: '#fafafa', fontSize: 13, lineHeight: 1.6,
+                resize: 'vertical', outline: 'none', marginBottom: 24,
+                fontFamily: 'inherit',
+              }}
+            />
 
             {/* Vibe selector */}
             <p style={{ color: '#71717a', fontSize: 12, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Edit style</p>
