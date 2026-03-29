@@ -91,7 +91,7 @@ function detectLookingAway(videoPath) {
 
 // ── 4. Claude edit planner — transcript + pauses + lookaway only ──────────────
 
-async function claudePlanEdit(anthropic, { segments, pauses, stutters, lookaway, vibe, feedback }) {
+async function claudePlanEdit(anthropic, { segments, pauses, stutters, lookaway, vibe, userPrompt, feedback }) {
   const transcriptLines = segments.map((s, i) =>
     `[${i}] ${s.start.toFixed(2)}-${s.end.toFixed(2)}s: "${s.text.trim()}"`
   ).join('\n')
@@ -119,7 +119,7 @@ async function claudePlanEdit(anthropic, { segments, pauses, stutters, lookaway,
   }[vibe] || 'KEEP: clear delivery. CUT: hard pauses, stutters, filler.'
 
   const prompt = `You are a professional video editor. Create a precise edit plan.
-
+${userPrompt ? `\nEDIT GOAL (user's instruction — this is your primary directive):\n"${userPrompt}"\n` : ''}
 TRANSCRIPT SEGMENTS (index, timestamps, text):
 ${transcriptLines}
 
@@ -135,6 +135,7 @@ ${lookawayList}
 EDIT STYLE: ${vibeRules}
 ${feedback ? `\nPREVIOUS ATTEMPT — ISSUES TO FIX:\n${feedback}\n` : ''}
 RULES:
+- The user's EDIT GOAL above overrides all other rules where they conflict
 - Output 3–8 clips total
 - NEVER cut mid-sentence — always finish the thought
 - Clip boundaries must align with segment boundaries (±0.1s)
@@ -194,7 +195,7 @@ Return ONLY valid JSON:
 // ── 6. /agent-edit route — no Gemini ─────────────────────────────────────────
 
 app.post('/agent-edit', async (req, res) => {
-  const { videoId, ext, vibe = 'balanced', segments = [], duration = 0 } = req.body
+  const { videoId, ext, vibe = 'balanced', segments = [], duration = 0, userPrompt = '' } = req.body
   if (!videoId || !ext)  return res.status(400).json({ error: 'videoId and ext required' })
   if (!segments.length)  return res.status(400).json({ error: 'segments required' })
 
@@ -224,7 +225,7 @@ app.post('/agent-edit', async (req, res) => {
       console.log(`[agent-edit] iteration ${iter + 1}/${MAX_ITER}`)
 
       const plan = await claudePlanEdit(anthropic, {
-        segments, pauses, stutters, lookaway, vibe,
+        segments, pauses, stutters, lookaway, vibe, userPrompt,
         feedback: allFeedback.length ? allFeedback.join('; ') : null,
       })
 
