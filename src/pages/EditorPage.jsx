@@ -155,6 +155,7 @@ export default function EditorPage() {
   // Step 1 — Upload
   const [videoId,    setVideoId]    = useState('')
   const [videoExt,   setVideoExt]   = useState('')
+  const [localVideoURL, setLocalVideoURL] = useState('')
   const [isUploading,setIsUploading]= useState(false)
   const [uploadPct,  setUploadPct]  = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -170,6 +171,7 @@ export default function EditorPage() {
   const [summary,        setSummary]        = useState('')
   const [clips,          setClips]          = useState([])
   const [captionSegments,setCaptionSegments]= useState([])
+  const [captionWords,   setCaptionWords]   = useState([])
 
   // Step 4 — Trim
   const [remainingClips, setRemainingClips] = useState([])
@@ -192,6 +194,17 @@ export default function EditorPage() {
   const brollInputRef  = useRef(null)
   const pollRef        = useRef(null)
   const brollKeyRef    = useRef(0)
+  const videoRef       = useRef(null)
+  const previewTimer   = useRef(null)
+
+  const previewClip = (start) => {
+    const v = videoRef.current
+    if (!v) return
+    clearTimeout(previewTimer.current)
+    v.currentTime = start
+    v.play()
+    previewTimer.current = setTimeout(() => v.pause(), 3000)
+  }
 
   useEffect(() => () => clearInterval(pollRef.current), [])
 
@@ -227,6 +240,7 @@ export default function EditorPage() {
     setError('')
     setIsUploading(true)
     setUploadPct(0)
+    setLocalVideoURL(URL.createObjectURL(file))
 
     const formData = new FormData()
     formData.append('video', file)
@@ -287,6 +301,7 @@ export default function EditorPage() {
           setSummary(result.summary || result.cutSummary || '')
           setClips(result.clips || [])
           setCaptionSegments(result.captionSegments || [])
+          setCaptionWords(result.captionWords || [])
           setProcessingDone(true)
         },
         (msg) => setError(msg),
@@ -349,7 +364,13 @@ export default function EditorPage() {
       const res  = await fetch(`${VIDEO_SERVER}/render`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ outputId, captionSegments: editedSegments, captionStyle }),
+        body:    JSON.stringify({
+          outputId,
+          captionSegments: captionStyle === 'bold-word' && captionWords.length > 0
+            ? captionWords.map(w => ({ start: w.start, end: w.end, text: w.word }))
+            : editedSegments,
+          captionStyle: captionStyle === 'bold-word' ? 'word' : 'subtitle',
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Export failed')
@@ -628,8 +649,26 @@ export default function EditorPage() {
       {/* ── STEP 4: MANUAL TRIM ─────────────────────────────────────────────── */}
       {step === 4 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Hidden video for preview scrubbing */}
+          {localVideoURL && (
+            <div style={{ borderRadius: 10, overflow: 'hidden', background: '#000', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <video
+                ref={videoRef}
+                src={localVideoURL}
+                style={{ width: '100%', maxHeight: 200, display: 'block', objectFit: 'contain' }}
+                playsInline
+              />
+            </div>
+          )}
+
           <div style={s.card}>
-            <label style={s.label}>Clips — {remainingClips.length} remaining</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <label style={{ ...s.label, marginBottom: 0 }}>Clips — {remainingClips.length} remaining</label>
+              <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>
+                {fmtTime(remainingClips.reduce((sum, c) => sum + (c.end - c.start), 0))} total
+              </span>
+            </div>
             {remainingClips.length === 0 ? (
               <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>No clips. All have been removed.</p>
             ) : (
@@ -640,33 +679,68 @@ export default function EditorPage() {
                     <div
                       key={i}
                       style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 14px',
                         background: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(255,255,255,0.06)',
                         borderRadius: 8,
                       }}
                     >
-                      <div style={{ display: 'flex', gap: 20 }}>
-                        <div>
-                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Start</div>
-                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.start)}</div>
+                      {/* Top row: timestamps + duration + actions */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ display: 'flex', gap: 16 }}>
+                          <div>
+                            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Start</div>
+                            <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.start)}</div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>End</div>
+                            <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.end)}</div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Duration</div>
+                            <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{dur}s</div>
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>End</div>
-                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{fmtTime(clip.end)}</div>
-                        </div>
-                        <div>
-                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Duration</div>
-                          <div style={{ color: '#fafafa', fontSize: 13, fontWeight: 500 }}>{dur}s</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {localVideoURL && (
+                            <button
+                              onClick={() => previewClip(clip.start)}
+                              style={{ ...s.btnGhost, padding: '6px 12px', fontSize: 12 }}
+                            >
+                              ▶ Preview
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setRemainingClips(prev => prev.filter((_, j) => j !== i))}
+                            style={s.btnDanger}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setRemainingClips(prev => prev.filter((_, j) => j !== i))}
-                        style={s.btnDanger}
-                      >
-                        Delete
-                      </button>
+                      {/* Editable in/out */}
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div>
+                          <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, marginBottom: 4 }}>Adjust start (s)</div>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={clip.start}
+                            onChange={e => setRemainingClips(prev => prev.map((c, j) => j === i ? { ...c, start: parseFloat(e.target.value) || 0 } : c))}
+                            style={s.inputSmall}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11, marginBottom: 4 }}>Adjust end (s)</div>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={clip.end}
+                            onChange={e => setRemainingClips(prev => prev.map((c, j) => j === i ? { ...c, end: parseFloat(e.target.value) || 0 } : c))}
+                            style={s.inputSmall}
+                          />
+                        </div>
+                      </div>
                     </div>
                   )
                 })}
@@ -720,8 +794,8 @@ export default function EditorPage() {
             <label style={s.label}>Caption style</label>
             <div style={{ display: 'flex', gap: 10 }}>
               {[
-                { id: 'subtitle',   label: 'Subtitle Style',   desc: 'Clean lines at the bottom' },
-                { id: 'bold-word',  label: 'Bold Word Style',  desc: 'One word at a time, center screen' },
+                { id: 'subtitle',   label: 'Subtitle',   desc: 'Clean sentence lines at the bottom' },
+                { id: 'bold-word',  label: 'TikTok',     desc: 'Word-by-word, bold, center screen' },
               ].map(opt => (
                 <button
                   key={opt.id}
